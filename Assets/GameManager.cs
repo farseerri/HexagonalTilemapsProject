@@ -6,6 +6,7 @@ using TMPro;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.HID;
 using UnityEngine.Tilemaps;
 using UnityEngine.UIElements;
 using static Utools;
@@ -17,12 +18,15 @@ public class GameManager : MonoBehaviour
     public Tilemap fogOfWar;
     public Tilemap collisionTilemap;
     public Tilemap waterTilemap;
+    public Tilemap pathTilemap;
+
 
     private Vector3 playerPosition;
     private Vector3 targetPosition;
     public MovementController player;
     public TileBase maskTile;
     public IEnumerator enumerator;
+    private List<GridNode> path;
     public void Awake()
     {
         Utools.gameManager = this;
@@ -55,48 +59,46 @@ public class GameManager : MonoBehaviour
         {
             if (Input.GetMouseButtonDown(1))
             {
-                OnLeftClick();
+                OnClickEvent();
             }
         }
 
     }
 
-    public void OnLeftClick()
+    public void OnClickEvent()
     {
         Utools.gameManager.player.controllerMovingState = Utools.ControllerMovingState.IsUsingMouseClickPause;
-
-
-
-        // Get the mouse click position in screen coordinates.
         Vector3 mousePosition = Input.mousePosition;
+        Ray ray = Camera.main.ScreenPointToRay(mousePosition);
 
-        // Convert screen coordinates to world coordinates.
-        Vector3 worldMousePosition = Camera.main.ScreenToWorldPoint(mousePosition);
+        RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction, Mathf.Infinity, LayerMask.GetMask("PathMap"));
 
-        // Convert world coordinates to cell (grid) coordinates for the target tilemap.
-        Vector3Int cellPosition = fogOfWar.WorldToCell(worldMousePosition); // Use the appropriate tilemap (fogOfWar in this case).
-
-        if (fogOfWar.GetTile(cellPosition) == null)
+        if (hit.collider == null)
         {
-            // Get the center of the cell for accuracy (assuming tiles are centered).
-            targetPosition = fogOfWar.GetCellCenterWorld(cellPosition); // Use the appropriate tilemap.
+            CreateNewPath();
+        }
+        else
+        {
+            targetPosition = hit.point;
+            GridNode targetNode = pathfindingManager.WorldToNode(targetPosition);
 
-
-            // Get player's current world position and mouse click world position.
-            playerPosition = player.transform.position;
-
-            Debug.Log("玩家所在格子:" + playerPosition.x + ":" + playerPosition.y);
-            Debug.Log("点击的格子:" + targetPosition.x + ":" + targetPosition.y);
-            List<GridNode> path = pathfindingManager.FindPath(playerPosition, targetPosition);
-
-            if (enumerator != null)
+            if (path[path.Count-1] == targetNode)
             {
-                StopCoroutine(enumerator);
-                enumerator = null;
+                if (enumerator != null)
+                {
+                    StopCoroutine(enumerator);
+                    enumerator = null;
+                }
+
+                enumerator = RunByPath(path, 0.5f);
+                StartCoroutine(enumerator);
+            }
+            else
+            {
+                CreateNewPath();
             }
 
-            enumerator = RunByPath(path, 0.5f);
-            StartCoroutine(enumerator);
+
         }
 
     }
@@ -105,25 +107,16 @@ public class GameManager : MonoBehaviour
     {
         if (path != null)
         {
-
             // Print the path (for debugging purposes).
             foreach (GridNode node in path)
             {
-                Debug.Log("Path: " + node.x + ", " + node.y);
                 Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
-                baseTilemap.SetTile(tilePosition, Utools.gameManager.maskTile);
-
                 player.transform.DOMove(baseTilemap.CellToWorld(tilePosition), time / 2);
                 player.UpdateFogOfWar(baseTilemap.CellToWorld(tilePosition));
-                //player.transform.position = baseTilemap.CellToWorld(tilePosition);
-
                 yield return new WaitForSeconds(time);
             }
             Utools.gameManager.player.controllerMovingState = Utools.ControllerMovingState.IsUsingKeyboardMoving;
-        }
-        else
-        {
-            Debug.Log("No path found.");
+            Utools.gameManager.pathTilemap.ClearAllTiles();
         }
     }
 
@@ -131,4 +124,43 @@ public class GameManager : MonoBehaviour
     {
         return Input.GetKeyUp(KeyCode.W) || Input.GetKeyUp(KeyCode.A) || Input.GetKeyUp(KeyCode.S) || Input.GetKeyUp(KeyCode.D);
     }
+
+    public void ShowPath(List<GridNode> path)
+    {
+        if (path != null)
+        {
+            foreach (GridNode node in path)
+            {
+                Debug.Log("Path: " + node.x + ", " + node.y);
+                Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
+                pathTilemap.SetTile(tilePosition, Utools.gameManager.maskTile);
+            }
+        }
+        else
+        {
+            Debug.Log("No path found.");
+        }
+    }
+
+    public void CreateNewPath()
+    {
+        Vector3 mousePosition = Input.mousePosition;
+        Ray ray = Camera.main.ScreenPointToRay(mousePosition);
+        Utools.gameManager.pathTilemap.ClearAllTiles();
+        RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction, Mathf.Infinity, LayerMask.GetMask("BaseTilemap"));
+        if (hit.collider != null)
+        {
+            // Get the world position of the hit point.
+            targetPosition = hit.point;
+
+            // Get player's current world position and mouse click world position.
+            playerPosition = player.transform.position;
+
+            Debug.Log("玩家所在格子:" + playerPosition.x + ":" + playerPosition.y);
+            Debug.Log("点击的格子:" + targetPosition.x + ":" + targetPosition.y);
+            path = pathfindingManager.FindPath(playerPosition, targetPosition);
+            ShowPath(path);
+        }
+    }
+
 }
