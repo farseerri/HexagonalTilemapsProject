@@ -19,7 +19,9 @@ public class MovementController : MonoBehaviour
     public float moveSpeed = 2.0f; // 移动速度
     public int vision = 1;
     public Utools.ControllerMovingState controllerMovingState;
-
+    public Utools.SoliderType soliderType;
+    public int actionLimit;
+    public bool faceLeft;
 
     private void Start()
     {
@@ -98,6 +100,64 @@ public class MovementController : MonoBehaviour
         controllerMovingState = ControllerMovingState.IsUsingMouseClickPause;
     }
 
+    public bool UpdateDirection(bool needTurn)
+    {
+        if (needTurn)
+        {
+            if (faceLeft)
+            {
+                transform.localScale = new Vector3(-1, 1, 1);
+            }
+            else
+            {
+                transform.localScale = new Vector3(1, 1, 1);
+            }
+        }
+        return faceLeft;
+    }
 
+    public bool UpdateDirection(Vector3 targetPosition, bool needTurn)
+    {
+        Vector3 direction = (targetPosition - transform.position).normalized;
+        faceLeft = direction.x > 0 ? true : false;
+        if (needTurn)
+        {
+            if (faceLeft)
+            {
+                transform.localScale = new Vector3(-1, 1, 1);
+            }
+            else
+            {
+                transform.localScale = new Vector3(1, 1, 1);
+            }
+        }
+        return faceLeft;
+    }
+
+
+    public IEnumerator RunByPath(List<GridNode> path, float time)
+    {
+        if (path != null)
+        {
+            // Print the path (for debugging purposes).
+            foreach (GridNode node in path)
+            {
+                if (node.gCost <= actionLimit)
+                {
+                    Vector3Int tilePosition = new Vector3Int(Utools.gameManager.baseTilemap.cellBounds.x + node.x, Utools.gameManager.baseTilemap.cellBounds.y + node.y, 0);
+                    Vector3 targetPosition = Utools.gameManager.baseTilemap.CellToWorld(tilePosition);
+
+                    UpdateDirection(targetPosition, true);
+
+                    transform.DOMove(targetPosition, time / 2);
+                    UpdateFogOfWar(targetPosition);
+                    yield return new WaitForSeconds(time);
+                }
+
+            }
+            controllerMovingState = Utools.ControllerMovingState.IsUsingKeyboardMoving;
+            Utools.gameManager.pathTilemap.ClearAllTiles();
+        }
+    }
 
 }

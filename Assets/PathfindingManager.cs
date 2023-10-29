@@ -3,11 +3,13 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEngine.WSA;
+using static Utools;
 
 public class PathfindingManager
 {
     private GridNode[,] grid;
-    public float actionLimit;
+
+    public Utools.SoliderType soliderType;
 
     public PathfindingManager(int width, int height)
     {
@@ -38,7 +40,9 @@ public class PathfindingManager
                 TileBase tile = inputTilemap.GetTile(tilePosition);
 
                 // Check if the tile in fogOfWar is walkable, and if there are corresponding colliders or water tiles.
-                bool isWalkable = IsTileWalkable(tile, tilePosition);
+
+
+                bool isWalkable = IsTileWalkable(tilePosition);
 
                 // Create a GridNode and set its properties.
                 grid[x, y] = new GridNode(x, y, isWalkable);
@@ -46,13 +50,15 @@ public class PathfindingManager
         }
     }
 
-    private bool IsTileWalkable(TileBase fogTile, Vector3Int tilePosition)
+    private bool IsTileWalkable(Vector3Int tilePosition)
     {
         bool isWalkable = true;
+
 
         if (Utools.gameManager.collisionTilemap.GetTile(tilePosition) != null || Utools.gameManager.waterTilemap.GetTile(tilePosition) != null)
         {
             isWalkable = false;
+
         }
 
         return isWalkable;
@@ -60,13 +66,13 @@ public class PathfindingManager
 
 
 
-    public List<GridNode> FindPath(Vector3 startPosition, Vector3 targetPosition, float actionLimit)
+    public List<GridNode> FindPath(Vector3 startPosition, Vector3 targetPosition, MovementController controller)
     {
-        this.actionLimit = actionLimit;
+        this.soliderType = controller.soliderType;
         // Convert world positions to grid positions (grid nodes).
         GridNode startNode = WorldToNode(startPosition);
-
         GridNode targetNode = WorldToNode(targetPosition);
+
 
 
         List<GridNode> openSet = new List<GridNode>();
@@ -118,7 +124,7 @@ public class PathfindingManager
                     }
                 }
 
-                if (neighbor.gCost > this.actionLimit)
+                if (neighbor.gCost > controller.actionLimit)
                 {
                     neighbor.isOutOfMovmentRange = true;
                     // 这个节点的行动值超出上限，可以在这里执行打印操作
@@ -244,6 +250,92 @@ public class PathfindingManager
         }
     }
 
+    public void ShowPath(List<GridNode> path)
+    {
+
+        if (path != null)
+        {
+            foreach (GridNode node in path)
+            {
+                Debug.Log("Path: " + node.x + ", " + node.y);
+                Vector3Int tilePosition = new Vector3Int(Utools.gameManager.baseTilemap.cellBounds.x + node.x, Utools.gameManager.baseTilemap.cellBounds.y + node.y, 0);
+
+                if (node.isOutOfMovmentRange)
+                {
+                    Utools.gameManager.pathTilemap.SetTile(tilePosition, Utools.gameManager.outMovementRangeTileType);
+                }
+                else
+                {
+                    Utools.gameManager.pathTilemap.SetTile(tilePosition, Utools.gameManager.inMovementRangeTileType);
+                }
+
+            }
+        }
+        else
+        {
+            Debug.Log("No path found.");
+        }
+    }
+    public Vector3 CreateNewPath(MovementController controller)
+    {
+        Vector3 targetPosition = Vector3.zero;
+        Vector3 mousePosition = Input.mousePosition;
+        Ray ray = Camera.main.ScreenPointToRay(mousePosition);
+        Utools.gameManager.pathTilemap.ClearAllTiles();
+        RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction, Mathf.Infinity, LayerMask.GetMask("BaseTilemap"));
+        if (hit.collider != null)
+        {
+            // Get the world position of the hit point.
+            targetPosition = hit.point;
+
+            // Get player's current world position and mouse click world position.
+            Vector3 controllerPosition = controller.transform.position;
+
+            Debug.Log("玩家所在格子:" + controllerPosition.x + ":" + controllerPosition.y);
+            Debug.Log("点击的格子:" + targetPosition.x + ":" + targetPosition.y);
+            Utools.gameManager.path = Utools.gameManager.pathfindingManager.FindPath(controllerPosition, targetPosition, controller);
+            Utools.gameManager.pathfindingManager.ShowPath(Utools.gameManager.path);
+        }
+        return targetPosition;
+    }
+
+
+
+    public List<GridNode> CalculateReachableArea(MovementController controller)
+    {
+        List<GridNode> reachableArea = new List<GridNode>();
+        Queue<GridNode> frontier = new Queue<GridNode>();
+        Dictionary<GridNode, int> costSoFar = new Dictionary<GridNode, int>();
+
+        GridNode startTile = WorldToNode(controller.transform.position);
+
+        frontier.Enqueue(startTile);
+        costSoFar[startTile] = 0;
+
+        while (frontier.Count > 0)
+        {
+            GridNode current = frontier.Dequeue();
+
+            if (costSoFar[current] > controller.actionLimit)
+                continue; // Skip tiles that are too far to reach
+
+            reachableArea.Add(current);
+
+            foreach (GridNode neighbor in GetHexagonalNeighbors(current))
+            {
+
+                int newCost = costSoFar[current] + GetDistance(current, neighbor); // Consider terrain cost
+                if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                {
+                    costSoFar[neighbor] = newCost;
+                    if (newCost <= controller.actionLimit)
+                        frontier.Enqueue(neighbor);
+                }
+            }
+        }
+
+        return reachableArea;
+    }
 
 
 }

@@ -14,5 +14,9 @@ public class Utools
         IsUsingMouseClickPause,
     }
 
-
+    public enum SoliderType
+    {
+        ondGrid,
+        twoGird,
+    }
 }

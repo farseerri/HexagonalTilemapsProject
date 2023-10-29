@@ -26,9 +26,11 @@ public class GameManager : MonoBehaviour
     public MovementController player;
     public TileBase inMovementRangeTileType;
     public TileBase outMovementRangeTileType;
+    public TileBase areaTileType;
     public IEnumerator enumerator;
-    private List<GridNode> path;
-    public float currentAtionLimit;
+    public List<GridNode> path;
+
+
     public void Awake()
     {
         Utools.gameManager = this;
@@ -37,7 +39,9 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+
         pathfindingManager = new PathfindingManager(Utools.gameManager.baseTilemap);
+        player.UpdateDirection(true);
     }
 
     // Update is called once per frame
@@ -65,6 +69,23 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            List<GridNode> reachableAreaGridNodeList = pathfindingManager.CalculateReachableArea(player);
+
+            foreach (GridNode gridNode in reachableAreaGridNodeList)
+            {
+                BoundsInt bounds = baseTilemap.cellBounds;
+                int x_orgin = bounds.x;
+                int y_orgin = bounds.y;
+
+                Vector3Int tilePosition = new Vector3Int(x_orgin + gridNode.x, y_orgin + gridNode.y, 0);
+
+                pathTilemap.SetTile(tilePosition, Utools.gameManager.areaTileType);
+            }
+
+        }
+
     }
 
     public void OnClickEvent()
@@ -77,7 +98,7 @@ public class GameManager : MonoBehaviour
 
         if (hit.collider == null)
         {
-            CreateNewPath();
+            targetPosition = pathfindingManager.CreateNewPath(player);
         }
         else
         {
@@ -92,12 +113,12 @@ public class GameManager : MonoBehaviour
                     enumerator = null;
                 }
 
-                enumerator = RunByPath(path, 0.5f);
+                enumerator = player.RunByPath(path, 0.5f);
                 StartCoroutine(enumerator);
             }
             else
             {
-                CreateNewPath();
+                targetPosition = pathfindingManager.CreateNewPath(player);
             }
 
 
@@ -105,79 +126,21 @@ public class GameManager : MonoBehaviour
 
     }
 
-    public IEnumerator RunByPath(List<GridNode> path, float time)
-    {
-        if (path != null)
-        {
-            // Print the path (for debugging purposes).
-            foreach (GridNode node in path)
-            {
-                if (node.gCost <= pathfindingManager.actionLimit)
-                {
-                    Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
-                    player.transform.DOMove(baseTilemap.CellToWorld(tilePosition), time / 2);
-                    player.UpdateFogOfWar(baseTilemap.CellToWorld(tilePosition));
-                    yield return new WaitForSeconds(time);
-                }
 
-            }
-            Utools.gameManager.player.controllerMovingState = Utools.ControllerMovingState.IsUsingKeyboardMoving;
-            Utools.gameManager.pathTilemap.ClearAllTiles();
-        }
-    }
+
+
+
+
+
 
     public bool isPressMovingKey()
     {
         return Input.GetKeyUp(KeyCode.W) || Input.GetKeyUp(KeyCode.A) || Input.GetKeyUp(KeyCode.S) || Input.GetKeyUp(KeyCode.D);
     }
 
-    public void ShowPath(List<GridNode> path)
-    {
 
-        if (path != null)
-        {
-            foreach (GridNode node in path)
-            {
-                Debug.Log("Path: " + node.x + ", " + node.y);
-                Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
 
-                if (node.isOutOfMovmentRange)
-                {
-                    pathTilemap.SetTile(tilePosition, Utools.gameManager.outMovementRangeTileType);
-                }
-                else
-                {
-                    pathTilemap.SetTile(tilePosition, Utools.gameManager.inMovementRangeTileType);
-                }
 
-            }
-        }
-        else
-        {
-            Debug.Log("No path found.");
-        }
-    }
-
-    public void CreateNewPath()
-    {
-        Vector3 mousePosition = Input.mousePosition;
-        Ray ray = Camera.main.ScreenPointToRay(mousePosition);
-        Utools.gameManager.pathTilemap.ClearAllTiles();
-        RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction, Mathf.Infinity, LayerMask.GetMask("BaseTilemap"));
-        if (hit.collider != null)
-        {
-            // Get the world position of the hit point.
-            targetPosition = hit.point;
-
-            // Get player's current world position and mouse click world position.
-            playerPosition = player.transform.position;
-
-            Debug.Log("玩家所在格子:" + playerPosition.x + ":" + playerPosition.y);
-            Debug.Log("点击的格子:" + targetPosition.x + ":" + targetPosition.y);
-            path = pathfindingManager.FindPath(playerPosition, targetPosition, currentAtionLimit);
-            ShowPath(path);
-        }
-    }
 
 
     public void NextRound()
