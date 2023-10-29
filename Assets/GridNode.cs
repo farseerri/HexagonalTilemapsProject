@@ -9,6 +9,7 @@ public class GridNode
     public GridNode parent;
     public int gCost;
     public int hCost;
+    public bool isOutOfMovmentRange = false;
 
     public int FCost
     {

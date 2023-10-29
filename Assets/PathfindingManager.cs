@@ -7,6 +7,7 @@ using UnityEngine.WSA;
 public class PathfindingManager
 {
     private GridNode[,] grid;
+    public float actionLimit;
 
     public PathfindingManager(int width, int height)
     {
@@ -59,8 +60,9 @@ public class PathfindingManager
 
 
 
-    public List<GridNode> FindPath(Vector3 startPosition, Vector3 targetPosition)
+    public List<GridNode> FindPath(Vector3 startPosition, Vector3 targetPosition, float actionLimit)
     {
+        this.actionLimit = actionLimit;
         // Convert world positions to grid positions (grid nodes).
         GridNode startNode = WorldToNode(startPosition);
 
@@ -115,6 +117,18 @@ public class PathfindingManager
                         openSet.Add(neighbor);
                     }
                 }
+
+                if (neighbor.gCost > this.actionLimit)
+                {
+                    neighbor.isOutOfMovmentRange = true;
+                    // 这个节点的行动值超出上限，可以在这里执行打印操作
+                    Debug.Log("Node with excessive action cost: " + neighbor.x + ", " + neighbor.y);
+                }
+                else
+                {
+                    neighbor.isOutOfMovmentRange = false;
+                }
+
             }
         }
 
@@ -141,11 +155,10 @@ public class PathfindingManager
     {
         int distX = Mathf.Abs(nodeA.x - nodeB.x);
         int distY = Mathf.Abs(nodeA.y - nodeB.y);
+        int distZ = Mathf.Abs(-nodeA.x - nodeA.y + nodeB.x + nodeB.y);
+        int distance = (distX + distY + distZ) / 2;
 
-        // Use Manhattan distance or Euclidean distance as needed.
-        // Example: return distX + distY; for Manhattan distance.
-
-        return 0;
+        return distance;
     }
 
     public GridNode WorldToNode(Vector3 worldPosition)
@@ -219,6 +232,18 @@ public class PathfindingManager
             neighbors.Add(grid[x, y]);
         }
     }
+
+    public void ResetNodeCosts()
+    {
+        foreach (GridNode node in grid)
+        {
+            node.gCost = 0;
+            node.hCost = 0;
+            node.parent = null;
+            node.isOutOfMovmentRange = false;
+        }
+    }
+
 
 
 }

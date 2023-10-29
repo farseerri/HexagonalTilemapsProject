@@ -24,9 +24,11 @@ public class GameManager : MonoBehaviour
     private Vector3 playerPosition;
     private Vector3 targetPosition;
     public MovementController player;
-    public TileBase maskTile;
+    public TileBase inMovementRangeTileType;
+    public TileBase outMovementRangeTileType;
     public IEnumerator enumerator;
     private List<GridNode> path;
+    public float currentAtionLimit;
     public void Awake()
     {
         Utools.gameManager = this;
@@ -82,7 +84,7 @@ public class GameManager : MonoBehaviour
             targetPosition = hit.point;
             GridNode targetNode = pathfindingManager.WorldToNode(targetPosition);
 
-            if (path[path.Count-1] == targetNode)
+            if (path[path.Count - 1] == targetNode)
             {
                 if (enumerator != null)
                 {
@@ -110,10 +112,14 @@ public class GameManager : MonoBehaviour
             // Print the path (for debugging purposes).
             foreach (GridNode node in path)
             {
-                Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
-                player.transform.DOMove(baseTilemap.CellToWorld(tilePosition), time / 2);
-                player.UpdateFogOfWar(baseTilemap.CellToWorld(tilePosition));
-                yield return new WaitForSeconds(time);
+                if (node.gCost <= pathfindingManager.actionLimit)
+                {
+                    Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
+                    player.transform.DOMove(baseTilemap.CellToWorld(tilePosition), time / 2);
+                    player.UpdateFogOfWar(baseTilemap.CellToWorld(tilePosition));
+                    yield return new WaitForSeconds(time);
+                }
+
             }
             Utools.gameManager.player.controllerMovingState = Utools.ControllerMovingState.IsUsingKeyboardMoving;
             Utools.gameManager.pathTilemap.ClearAllTiles();
@@ -127,13 +133,23 @@ public class GameManager : MonoBehaviour
 
     public void ShowPath(List<GridNode> path)
     {
+
         if (path != null)
         {
             foreach (GridNode node in path)
             {
                 Debug.Log("Path: " + node.x + ", " + node.y);
                 Vector3Int tilePosition = new Vector3Int(baseTilemap.cellBounds.x + node.x, baseTilemap.cellBounds.y + node.y, 0);
-                pathTilemap.SetTile(tilePosition, Utools.gameManager.maskTile);
+
+                if (node.isOutOfMovmentRange)
+                {
+                    pathTilemap.SetTile(tilePosition, Utools.gameManager.outMovementRangeTileType);
+                }
+                else
+                {
+                    pathTilemap.SetTile(tilePosition, Utools.gameManager.inMovementRangeTileType);
+                }
+
             }
         }
         else
@@ -158,9 +174,15 @@ public class GameManager : MonoBehaviour
 
             Debug.Log("玩家所在格子:" + playerPosition.x + ":" + playerPosition.y);
             Debug.Log("点击的格子:" + targetPosition.x + ":" + targetPosition.y);
-            path = pathfindingManager.FindPath(playerPosition, targetPosition);
+            path = pathfindingManager.FindPath(playerPosition, targetPosition, currentAtionLimit);
             ShowPath(path);
         }
+    }
+
+
+    public void NextRound()
+    {
+        pathfindingManager.ResetNodeCosts();
     }
 
 }
