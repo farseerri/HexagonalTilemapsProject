@@ -21,7 +21,11 @@ public class GameManager : MonoBehaviour
 
     private Vector3 playerPosition;
     private Vector3 targetPosition;
-    public MovementController player;
+    public MovementController currentPlayer;
+
+    public MovementController oneGridSoilder;
+    public MovementController twoGridSoilder;
+
     public TileBase inMovementRangeTileType;
     public TileBase outMovementRangeTileType;
     public TileBase areaTileType;
@@ -39,7 +43,7 @@ public class GameManager : MonoBehaviour
     {
 
         pathfindingManager = new PathfindingManager(Utools.gameManager.baseTilemap);
-        player.UpdateDirection(true);
+        currentPlayer.UpdateDirection(true);
     }
 
     // Update is called once per frame
@@ -49,15 +53,15 @@ public class GameManager : MonoBehaviour
 
         if (Utools.gameManager.isPressMovingKey())
         {
-            Utools.gameManager.player.controllerMovingState = Utools.ControllerMovingState.IsUsingKeyboardMoving;
+            Utools.gameManager.currentPlayer.controllerMovingState = Utools.ControllerMovingState.IsUsingKeyboardMoving;
         }
 
-        if (Utools.gameManager.player.controllerMovingState == Utools.ControllerMovingState.IsUsingKeyboardMoving)
+        if (Utools.gameManager.currentPlayer.controllerMovingState == Utools.ControllerMovingState.IsUsingKeyboardMoving)
         {
             float horizontal = Input.GetAxis("Horizontal");
             float vertical = Input.GetAxis("Vertical");
             Debug.Log("Horizontal:" + horizontal + " Vertical:" + vertical);
-            Utools.gameManager.player.GetMovementDirection(horizontal, vertical);
+            Utools.gameManager.currentPlayer.GetMovementDirection(horizontal, vertical);
         }
         else
         {
@@ -69,7 +73,7 @@ public class GameManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.E))
         {
-            List<GridNode> reachableAreaGridNodeList = pathfindingManager.CalculateReachableArea(player);
+            List<GridNode> reachableAreaGridNodeList = pathfindingManager.CalculateReachableArea(currentPlayer);
 
             foreach (GridNode gridNode in reachableAreaGridNodeList)
             {
@@ -88,7 +92,7 @@ public class GameManager : MonoBehaviour
 
     public void OnClickEvent()
     {
-        Utools.gameManager.player.controllerMovingState = Utools.ControllerMovingState.IsUsingMouseClickPause;
+        Utools.gameManager.currentPlayer.controllerMovingState = Utools.ControllerMovingState.IsUsingMouseClickPause;
         Vector3 mousePosition = Input.mousePosition;
         Ray ray = Camera.main.ScreenPointToRay(mousePosition);
 
@@ -96,7 +100,7 @@ public class GameManager : MonoBehaviour
 
         if (hit.collider == null)
         {
-            targetPosition = pathfindingManager.CreateNewPath(player);
+            targetPosition = pathfindingManager.CreateNewPath(currentPlayer);
         }
         else
         {
@@ -111,12 +115,12 @@ public class GameManager : MonoBehaviour
                     enumerator = null;
                 }
 
-                enumerator = player.RunByPath(path, 0.5f);
+                enumerator = currentPlayer.RunByPath(path, 0.5f);
                 StartCoroutine(enumerator);
             }
             else
             {
-                targetPosition = pathfindingManager.CreateNewPath(player);
+                targetPosition = pathfindingManager.CreateNewPath(currentPlayer);
             }
 
 
@@ -144,6 +148,12 @@ public class GameManager : MonoBehaviour
     public void NextRound()
     {
         pathfindingManager.ResetNodeCosts();
+    }
+
+
+    public void SetCurrentPlayer(MovementController controller)
+    {
+        currentPlayer = controller;
     }
 
 }
