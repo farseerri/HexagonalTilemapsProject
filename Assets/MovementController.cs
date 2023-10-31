@@ -21,7 +21,7 @@ public class MovementController : MonoBehaviour
     public Utools.ControllerMovingState controllerMovingState;
     public Utools.SoliderType soliderType;
     public int actionLimit;
-    public bool faceLeft;
+    public bool faceRight;
 
     private void Start()
     {
@@ -104,7 +104,7 @@ public class MovementController : MonoBehaviour
     {
         if (needTurn)
         {
-            if (faceLeft)
+            if (faceRight)
             {
                 transform.localScale = new Vector3(-1, 1, 1);
             }
@@ -113,16 +113,16 @@ public class MovementController : MonoBehaviour
                 transform.localScale = new Vector3(1, 1, 1);
             }
         }
-        return faceLeft;
+        return faceRight;
     }
 
     public bool UpdateDirection(Vector3 targetPosition, bool needTurn)
     {
         Vector3 direction = (targetPosition - transform.position).normalized;
-        faceLeft = direction.x > 0 ? true : false;
+        faceRight = direction.x > 0 ? true : false;
         if (needTurn)
         {
-            if (faceLeft)
+            if (faceRight)
             {
                 transform.localScale = new Vector3(-1, 1, 1);
             }
@@ -131,7 +131,7 @@ public class MovementController : MonoBehaviour
                 transform.localScale = new Vector3(1, 1, 1);
             }
         }
-        return faceLeft;
+        return faceRight;
     }
 
 

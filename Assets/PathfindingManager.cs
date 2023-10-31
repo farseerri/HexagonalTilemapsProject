@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using TMPro;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.InputSystem.XR;
 using UnityEngine.Tilemaps;
 using UnityEngine.WSA;
 using static Utools;
@@ -102,11 +104,19 @@ public class PathfindingManager
             }
 
 
-
-
             foreach (GridNode neighbor in currentNode.neighbors)
             {
-                if (!neighbor.isWalkable || closedSet.Contains(neighbor))
+                bool isTwoGridCanPass = false;
+                if (this.soliderType == SoliderType.twoGird)
+                {
+                    isTwoGridCanPass = CheckTwoGridCanPass(controller, NodeToWorld(neighbor));
+                }
+                else
+                {
+                    isTwoGridCanPass = true;
+                }
+
+                if (!neighbor.isWalkable || closedSet.Contains(neighbor) || isTwoGridCanPass == false)
                 {
                     continue;
                 }
@@ -323,9 +333,20 @@ public class PathfindingManager
 
             foreach (GridNode neighbor in GetHexagonalNeighbors(current))
             {
+                // Check if the neighbor is walkable and does not contain impassable tiles
+                bool isNeighborWalkable = neighbor.isWalkable;
+
+                if (this.soliderType == SoliderType.twoGird)
+                {
+                    if (isNeighborWalkable)
+                    {
+                        Vector3 neighborWorldPos = NodeToWorld(neighbor);
+                        isNeighborWalkable = CheckTwoGridCanPass(controller, neighborWorldPos);
+                    }
+                }
 
                 int newCost = costSoFar[current] + GetDistance(current, neighbor); // Consider terrain cost
-                if (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor])
+                if (isNeighborWalkable && (!costSoFar.ContainsKey(neighbor) || newCost < costSoFar[neighbor]))
                 {
                     costSoFar[neighbor] = newCost;
                     if (newCost <= controller.actionLimit)
@@ -337,5 +358,48 @@ public class PathfindingManager
         return reachableArea;
     }
 
+    public bool CheckTwoGridCanPass(MovementController controller, Vector3 worldPosition)
+    {
+        bool isTwoGridCanPass = false;
+        bool isFaceRight = controller.UpdateDirection(worldPosition, false);
+
+        //Vector3Int tilePosition = new Vector3Int(Utools.gameManager.baseTilemap.cellBounds.x + gridNode.x, Utools.gameManager.baseTilemap.cellBounds.y + gridNode.y, 0);
+        //Vector3 worldPosition = Utools.gameManager.baseTilemap.CellToWorld(tilePosition);
+        Vector3Int currentTilePostion = Utools.gameManager.pathTilemap.WorldToCell(worldPosition);
+        if (!isFaceRight)
+        {
+            if (Utools.gameManager.collisionTilemap.GetTile(currentTilePostion) == null && Utools.gameManager.collisionTilemap.GetTile(currentTilePostion + Vector3Int.right) == null)
+            {
+                isTwoGridCanPass = true;
+            }
+        }
+        else
+        {
+            if (Utools.gameManager.collisionTilemap.GetTile(currentTilePostion) == null && Utools.gameManager.collisionTilemap.GetTile(currentTilePostion + Vector3Int.left) == null)
+            {
+                isTwoGridCanPass = true;
+            }
+        }
+        return isTwoGridCanPass;
+    }
+
+    public Vector3 NodeToWorld(GridNode node)
+    {
+        if (node == null)
+        {
+            return Vector3.zero; // 或者其他适当的默认值
+        }
+
+        // 获取基础 Tilemap 的原点位置
+        Vector3Int tilemapOrigin = Utools.gameManager.baseTilemap.cellBounds.position;
+
+        // 计算网格节点在 Tilemap 中的位置
+        Vector3Int tilePosition = new Vector3Int(tilemapOrigin.x + node.x, tilemapOrigin.y + node.y, 0);
+
+        // 获取网格节点中心的世界坐标
+        Vector3 worldPosition = Utools.gameManager.baseTilemap.GetCellCenterWorld(tilePosition);
+
+        return worldPosition;
+    }
 
 }
