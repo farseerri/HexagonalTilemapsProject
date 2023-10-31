@@ -1,0 +1,12 @@
+
+.svn/
+Library/
+.vs/
+.vsconfig
+Assembly-CSharp-firstpass.csproj
+Assembly-CSharp.csproj
+HexagonalTilemapsProject.sln
+Logs/
+obj/
+Packages/
+UserSettings/
