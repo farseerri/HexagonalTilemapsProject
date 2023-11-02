@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -19,4 +20,13 @@ public class Utools
         ondGrid,
         twoGird,
     }
+
+    [Serializable]
+    public class SoilderData
+    {
+        public string soliderName;
+        public int actionLimit;
+        public SoliderType soliderType;
+    }
+
 }

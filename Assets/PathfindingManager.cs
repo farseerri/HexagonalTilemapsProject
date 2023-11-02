@@ -1,14 +1,17 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using UnityEngine.UI;
 using UnityEngine.WSA;
 using static Utools;
 
+
 public class PathfindingManager
 {
-    private GridNode[,] grid;
+    public GridNode[,] grid;
 
     public Utools.SoliderType soliderType;
 
@@ -37,11 +40,11 @@ public class PathfindingManager
             {
                 Vector3Int tilePosition = new Vector3Int(x_orgin + x, y_orgin + y, 0);
 
+
                 // 获取格子中的瓦片
                 TileBase tile = inputTilemap.GetTile(tilePosition);
 
                 // Check if the tile in fogOfWar is walkable, and if there are corresponding colliders or water tiles.
-
 
                 bool isWalkable = IsTileWalkable(tilePosition);
 
@@ -75,7 +78,6 @@ public class PathfindingManager
         GridNode targetNode = WorldToNode(targetPosition);
 
 
-
         List<GridNode> openSet = new List<GridNode>();
         HashSet<GridNode> closedSet = new HashSet<GridNode>();
 
@@ -91,6 +93,12 @@ public class PathfindingManager
                 if (openSet[i].FCost < currentNode.FCost || (openSet[i].FCost == currentNode.FCost && openSet[i].hCost < currentNode.hCost))
                 {
                     currentNode = openSet[i];
+                    GridText tmp = Utools.gameManager.GetGridText(currentNode);
+                    if (tmp != null)
+                    {
+                        tmp.stringText.color = Color.white;
+                    }
+
                 }
             }
 
@@ -137,7 +145,7 @@ public class PathfindingManager
                 {
                     neighbor.isOutOfMovmentRange = true;
                     // 这个节点的行动值超出上限，可以在这里执行打印操作
-                    Debug.Log("Node with excessive action cost: " + neighbor.x + ", " + neighbor.y);
+                    Debug.Log("Node with excessive action cost: " + controller.actionLimit + " " + neighbor.x + ", " + neighbor.y);
                 }
                 else
                 {
@@ -175,6 +183,9 @@ public class PathfindingManager
 
         return distance;
     }
+
+
+
 
     public GridNode WorldToNode(Vector3 worldPosition)
     {
